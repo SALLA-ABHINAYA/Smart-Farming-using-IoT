@@ -1,0 +1,136 @@
+#define BLYNK_TEMPLATE_ID "TMPLcNJWUQaD"
+#define BLYNK_TEMPLATE_NAME "Cropmonitor"
+#define BLYNK_AUTH_TOKEN "9wFv_0byZIe6MS8r999n1kzQq63Qrue8"
+char auth[] = BLYNK_AUTH_TOKEN;
+
+#define BLYNK_PRINT Serial
+#include <ESP8266_Lib.h>
+#include <BlynkSimpleShieldEsp8266.h>
+#include "DHT.h"
+#include <Wire.h>
+
+#include <LiquidCrystal.h>
+
+int flag = 0;
+char ssid[] = "Redmi";
+char pass[] = "sadiya06";
+
+#define EspSerial Serial
+
+#define ESP8266_BAUD 115200
+
+#define DHTPIN 6   
+#define DHTTYPE DHT11 
+
+ESP8266 wifi(&EspSerial);
+DHT dht(DHTPIN, DHTTYPE);
+
+WidgetLED my_air(V5);
+WidgetLED pump(V0);
+
+const int irPin = 7;
+const int soilPin = A2; 
+const int soil_relay = 8;
+const int ir_relay = 9;
+const int airPin = A0;
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+void setup()
+{
+  Serial.begin(9600);
+  delay(10);
+  EspSerial.begin(ESP8266_BAUD);
+  delay(10);
+  Blynk.begin(auth, wifi, ssid, pass);
+  dht.begin();
+  lcd.begin(16, 2);
+    
+  pinMode(irPin, INPUT);
+  pinMode(soil_relay, OUTPUT );
+  pinMode(ir_relay, OUTPUT);
+  my_air.off();
+  digitalWrite(ir_relay, LOW);
+  digitalWrite(soil_relay, LOW);
+  lcd.setCursor(5, 0);
+  lcd.print("welcome");
+  lcd.setCursor(0, 1);
+  lcd.print("to the project");
+  delay(2000);
+}
+
+void loop()
+{
+  Blynk.run();
+  delay(1000);
+  lcd.clear();
+  float temp =  dht.readTemperature();
+  float humid = dht.readHumidity();    
+   
+  int soil  = analogRead(soilPin);
+  if(soil < 300)
+    soil = 300;   
+  int air  =  analogRead(airPin);   
+  int ir   = digitalRead(irPin);
+  int percentage = map(soil, 1014, 300, 0, 100);
+
+  Serial.print("Temperature :");
+  Serial.println(temp);
+  Serial.print("Humidity :");
+  Serial.println(humid);
+  Serial.print("Moisture Level :");
+  Serial.println(soil);
+  Serial.print("Air Level :");
+  Serial.println(air);
+
+  lcd.print("Temperature");
+  lcd.setCursor(0, 1);
+  lcd.print(temp);
+  delay(2000);
+  lcd.clear();
+  lcd.print("Humidity");
+  lcd.setCursor(0, 1);
+  lcd.print(humid);
+  delay(2000);
+  lcd.clear();
+  if(ir == 0){
+    digitalWrite(ir_relay, HIGH);
+  }else{
+    digitalWrite(ir_relay, LOW);
+  }
+  if(percentage <= 20){
+    digitalWrite(soil_relay, HIGH);
+    pump.on(); 
+    //Blynk.logEvent("Motor is ON"); 
+    if(flag = 0){
+      Blynk.logEvent("crop-monitor", "Motor is ON");
+      flag = 1;
+    }
+    lcd.setCursor(5, 0); 
+    lcd.print("Motor is");
+    lcd.setCursor(5, 1);
+    lcd.print("ON");
+  }else{
+    pump.off();
+    digitalWrite(soil_relay,LOW);
+  if(flag = 1){
+      Blynk.logEvent("crop-monitor", "Motor is ON");
+      flag = 0;
+    }
+    lcd.setCursor(5, 0); 
+    lcd.print("Motor is");
+    lcd.setCursor(5, 1);
+    lcd.print("OFF");
+  }  
+  
+  if(air <  200){
+    my_air.off();
+    Blynk.logEvent("crop-monitor", "Danger : Air is polluted");
+  }else {
+   my_air.on();
+  }  
+  Blynk.virtualWrite(V1, temp); 
+  Blynk.virtualWrite(V2, humid);
+  Blynk.virtualWrite(V3, percentage);
+  Blynk.virtualWrite(V4, air);
+}
