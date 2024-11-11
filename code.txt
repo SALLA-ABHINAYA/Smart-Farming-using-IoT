@@ -13,7 +13,7 @@ char auth[] = BLYNK_AUTH_TOKEN;
 
 int flag = 0;
 char ssid[] = "Redmi";
-char pass[] = "sadiya06";
+char pass[] = "Abhinaya";
 
 #define EspSerial Serial
 
